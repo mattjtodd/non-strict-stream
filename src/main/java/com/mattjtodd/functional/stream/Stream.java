@@ -1,6 +1,5 @@
 package com.mattjtodd.functional.stream;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
@@ -354,7 +353,7 @@ public class Stream<T> {
      * @return tru if this is the empty stream, false otherwise
      */
     public boolean isEmpty() {
-        return value.isPresent();
+        return !value.isPresent();
     }
 
     /**
