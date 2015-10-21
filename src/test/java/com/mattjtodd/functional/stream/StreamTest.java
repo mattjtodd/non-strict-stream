@@ -5,7 +5,6 @@ import org.hamcrest.core.Is;
 import org.junit.Test;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -183,6 +182,26 @@ public class StreamTest {
     @Test
     public void fromCheckingFiveToTen() {
         assertThat(from(5).take(5).toList(), Is.is(newArrayList(5, 6, 7, 8, 9)));
+    }
+
+    @Test
+    public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
+        List<Object> objects =
+            oneTwoThree()
+                .foldRightToStream(tuple -> cons(() -> tuple.getOne(), tuple.getTwo()))
+                .toList();
+
+        assertEquals(ImmutableList.of("One", "Two", "Three"), objects);
+    }
+
+    @Test
+    public void foldLeftToStreamCopyCheckingFoldDirectionCorrect() {
+        List<Object> objects =
+            oneTwoThree()
+                .foldLeftToStream(tuple -> cons(() -> tuple.getOne(), tuple.getTwo()))
+                .toList();
+
+        assertEquals(ImmutableList.of("Three", "Two", "One"), objects);
     }
 
     private static Stream<String> oneTwoThree() {

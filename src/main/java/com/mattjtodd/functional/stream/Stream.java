@@ -1,5 +1,6 @@
 package com.mattjtodd.functional.stream;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.copyOf;
 import static com.mattjtodd.functional.stream.Suppliers.cache;
 import static com.mattjtodd.functional.stream.Tuple.of;
@@ -31,7 +33,7 @@ public class Stream<T> {
      * @param value an optional Monad containing the supplier for the head supplier and the next stream value supplier.
      */
     private Stream(Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> value) {
-        this.value = value;
+        this.value = checkNotNull(value);
     }
 
     /**
@@ -52,7 +54,7 @@ public class Stream<T> {
      * @param nextValue the non-strict next stream value
      * @return the new stream
      */
-    private static <T> Stream<T> cons(Supplier<? extends T> value, Supplier<Stream<T>> nextValue) {
+    public static <T> Stream<T> cons(Supplier<? extends T> value, Supplier<Stream<T>> nextValue) {
         return new Stream<>(value, nextValue);
     }
 
@@ -140,7 +142,7 @@ public class Stream<T> {
      * @param value the value for this stream
      * @return the terminal list
      */
-    private static <T> List<T> toList(Tuple<Supplier<? extends T>, Supplier<Stream<T>>> value) {
+    public static <T> List<T> toList(Tuple<Supplier<? extends T>, Supplier<Stream<T>>> value) {
         return new ImmutableList.Builder<T>()
             .add(value.getOne().get())
             .addAll(value.getTwo().get().toList())
@@ -196,7 +198,7 @@ public class Stream<T> {
      * @param func the reduction function
      * @return the reduced value
      */
-    private <E> E foldRight(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func) {
+    public <E> E foldRight(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func) {
         if (!value.isPresent()) {
             return result.get();
         }
@@ -308,6 +310,17 @@ public class Stream<T> {
         return foldRight(Stream::empty, func);
     }
 
+
+    /**
+     * Partially applied fold right which always reduces to a stream.
+     *
+     * @param func the reduction function
+     * @return the reduction stream
+     */
+    public <E> Stream<E> foldLeftToStream(Function<Tuple<T, Supplier<Stream<E>>>, Stream<E>> func) {
+        return foldLeft(Stream::empty, func);
+    }
+
     /**
      * Appends one stream to the end ofList this one.
      *
@@ -341,7 +354,7 @@ public class Stream<T> {
      * @return tru if this is the empty stream, false otherwise
      */
     public boolean isEmpty() {
-        return this == EMPTY;
+        return value.isPresent();
     }
 
     /**
