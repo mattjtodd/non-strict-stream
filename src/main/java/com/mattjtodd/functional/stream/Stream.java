@@ -109,11 +109,18 @@ public class Stream<T> {
             .orElse(empty());
     }
 
+    /**
+     * Virtual tail-call optimised forEach, capable of handling an infinite stream.
+     *
+     * @param consumer the consumer to be applied to every item
+     */
     public void forEach(Consumer<T> consumer) {
-        value.ifPresent(tuple -> {
+        Stream<T> current = this;
+        while(current.value.isPresent()) {
+            Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = current.value.get();
             consumer.accept(tuple.getOne().get());
-            tuple.getTwo().get().forEach(consumer);
-        });
+            current = tuple.getTwo().get();
+        }
     }
 
     /**
@@ -174,23 +181,61 @@ public class Stream<T> {
      * @return the stream bound by the function
      */
     public Stream<T> takeWhile(Function<? super T, Boolean> condition) {
-        return value
-            .filter(tuple -> condition.apply(tuple.getOne().get()))
-            .map(tuple -> cons(tuple.getOne(), () -> tuple.getTwo().get().takeWhile(condition)))
-            .orElse(empty());
+        if (!value.isPresent() || !condition.apply(value.get().getOne().get())) {
+            return empty();
+        }
+        Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = value.get();
+        return cons(tuple.getOne(), () -> tuple.getTwo().get().takeWhile(condition));
     }
 
     /**
-     * A fold-right reduce function.
+     * A fold-right reduce function.  Note that this should not be used with large expected streams as it will blow the
+     * stack due to a non-tail recursive call.
      *
      * @param result the non-strict result function
      * @param func the reduction function
      * @return the reduced value
      */
-    public <E> E foldRight(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func) {
-        return value
-            .map(tuple -> func.apply(of(tuple.getOne().get(), () -> tuple.getTwo().get().foldRight(result, func))))
-            .orElseGet(result);
+    private <E> E foldRight(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func) {
+        if (!value.isPresent()) {
+            return result.get();
+        }
+        Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = value.get();
+        return func.apply(of(tuple.getOne().get(), () -> tuple.getTwo().get().foldRight(result, func)));
+    }
+
+    /**
+     * A fold-left reduce function using trampolines to optimise it's tail-call recursion.
+     *
+     * @param result the non-strict result function
+     * @param func the reduction function
+     * @param <E> the accumulator type
+     * @return the reduced value
+     */
+    public <E> E foldLeft(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func) {
+        return doFoldLeft(result, func, this).invoke();
+    }
+
+    /**
+     * Implements the foldLeft function using tail recursion and a trampoline to handle the stack.  It also evaluates
+     * the lazy function arguments which would otherwise blow the stack also.
+     *
+     * @param result the current reduction result
+     * @param func the function to apply when reducing
+     * @param stream the current stream value
+     * @return the reduced value
+     */
+    private static <E, T> TailCall<E> doFoldLeft(Supplier<E> result, Function<Tuple<T, Supplier<E>>, E> func, Stream<T> stream) {
+        if (!stream.value.isPresent()) {
+            return TailCall.done(result.get());
+        }
+
+        // remove the non-strictness from the trampoline calls by invoking the suppliers
+        Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = stream.value.get();
+        E apply = func.apply(of(tuple.getOne().get(), result));
+        Stream<T> next = tuple.getTwo().get();
+
+        return () -> doFoldLeft(() -> apply, func, next);
     }
 
     /**
@@ -201,9 +246,7 @@ public class Stream<T> {
      * @return true if the condition is met, false otherwise
      */
     public boolean exists(Function<? super T, Boolean> condition) {
-        return foldRight(
-            () -> false,
-            entry -> condition.apply(entry.getOne()) ? true : entry.getTwo().get());
+        return foldRight(() -> false, entry -> condition.apply(entry.getOne()) ? true : entry.getTwo().get());
     }
 
     /**
@@ -214,9 +257,10 @@ public class Stream<T> {
      * @return true if the condition was met, false otherwise
      */
     public boolean forAll(Function<? super T, Boolean> condition) {
-        return foldRight(
-            () -> true,
-            entry -> condition.apply(entry.getOne()) && entry.getTwo().get());
+        Function<Tuple<T, Supplier<Boolean>>, Boolean> function =
+            entry -> condition.apply(entry.getOne()) && entry.getTwo().get();
+
+        return foldRight(() -> true, function);
     }
 
     /**
@@ -226,8 +270,8 @@ public class Stream<T> {
      * @return the stream with the traversal function applied to it
      */
     public Stream<T> takeWhile2(Function<? super T, Boolean> condition) {
-        return foldRightToStream(entry -> condition.apply(entry.getOne())
-                                          ? cons(() -> entry.getOne(), entry.getTwo())
+        return foldRightToStream(tuple -> condition.apply(tuple.getOne())
+                                          ? cons(tuple::getOne, tuple.getTwo())
                                           : empty());
     }
 
@@ -239,7 +283,7 @@ public class Stream<T> {
      * @return the transformed stream
      */
     public <E> Stream<E> map(Function<? super T, ? extends E> func) {
-        return foldRightToStream(entry -> cons(() -> func.apply(entry.getOne()), entry.getTwo()));
+        return foldRightToStream(tuple -> cons(() -> func.apply(tuple.getOne()), tuple.getTwo()));
     }
 
     /**
@@ -250,18 +294,18 @@ public class Stream<T> {
      */
     public Stream<T> filter(Predicate<? super T> predicate) {
         return foldRightToStream(entry -> predicate.test(entry.getOne())
-                                          ? cons(() -> entry.getOne(), entry.getTwo())
+                                          ? cons(entry::getOne, entry.getTwo())
                                           : entry.getTwo().get());
     }
 
     /**
-     * Partially applied ffold right which always reduces to a stream.
+     * Partially applied fold right which always reduces to a stream.
      *
      * @param func the reduction function
      * @return the reduction stream
      */
     public <E> Stream<E> foldRightToStream(Function<Tuple<T, Supplier<Stream<E>>>, Stream<E>> func) {
-        return foldRight(() -> empty(), func);
+        return foldRight(Stream::empty, func);
     }
 
     /**
@@ -272,7 +316,7 @@ public class Stream<T> {
      */
     public Stream<T> append(Stream<T> stream) {
         return foldRightToStream(entry -> cons(
-            () -> entry.getOne(),
+            entry::getOne,
             (entry.getTwo().get().isEmpty()) ? () -> stream : entry.getTwo()));
     }
 
@@ -307,11 +351,5 @@ public class Stream<T> {
      */
     Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> getValue() {
         return value;
-    }
-
-    public static void main(String[] args) {
-        Stream
-            .unfold(1, value -> Optional.of(of(value, value + 1)))
-            .forEach(System.out::println);
     }
 }

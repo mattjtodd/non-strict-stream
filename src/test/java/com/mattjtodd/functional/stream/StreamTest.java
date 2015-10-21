@@ -185,13 +185,6 @@ public class StreamTest {
         assertThat(from(5).take(5).toList(), Is.is(newArrayList(5, 6, 7, 8, 9)));
     }
 
-    @Test
-    public void unfoldAsFrom() {
-        String s = unfold(10, value -> Optional.of(Tuple.of(value, value + 1))).take(5).toString();
-
-        System.out.println(s);
-    }
-
     private static Stream<String> oneTwoThree() {
         return Stream.ofList(ImmutableList.of("One", "Two", "Three"));
     }

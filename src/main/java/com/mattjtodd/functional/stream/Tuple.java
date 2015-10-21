@@ -1,7 +1,5 @@
 package com.mattjtodd.functional.stream;
 
-import java.util.stream.*;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
