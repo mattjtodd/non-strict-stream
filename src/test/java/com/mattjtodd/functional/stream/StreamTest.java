@@ -1,210 +1,209 @@
 package com.mattjtodd.functional.stream;
 
+import static com.google.common.collect.Lists.newArrayList;
+import static com.mattjtodd.functional.stream.Stream.cons;
+import static com.mattjtodd.functional.stream.Stream.empty;
+import static com.mattjtodd.functional.stream.Streams.constant;
+import static com.mattjtodd.functional.stream.Streams.from;
+import static com.mattjtodd.functional.stream.Streams.streamOf;
+import static java.util.Arrays.asList;
+import static java.util.Collections.nCopies;
+import static java.util.Collections.singletonList;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+
 import com.google.common.collect.ImmutableList;
+
 import org.hamcrest.core.Is;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-import static com.google.common.collect.Lists.newArrayList;
-import static com.mattjtodd.functional.stream.Stream.*;
-import static java.util.Arrays.asList;
-import static java.util.Collections.nCopies;
-import static java.util.Collections.singletonList;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
 /**
  * Tests for {@link Stream}.
  */
 public class StreamTest {
-    @Test
-    public void applyCheckingOneValue() {
-        Object value = new Object();
 
-        assertThat(ofList(singletonList(value)).getValue().get().getOne().get(), is(value));
-    }
+  private static Stream<String> oneTwoThree() {
+    return streamOf(ImmutableList.of("One", "Two", "Three"));
+  }
 
-    @Test
-    public void applyCheckingEmptyStream() {
-        assertThat(ofList(singletonList(new Object())).getValue().get().getTwo().get(), is(empty()));
-    }
+  @Test
+  public void applyCheckingOneValue() {
+    Object value = new Object();
 
-    @Test
-    public void toList() {
-        Object value1 = new Object();
-        Object value2 = new Object();
-        Object value3 = new Object();
-        Stream<Object> stream = ofList(asList(value1, value2, value3));
+    assertThat(streamOf(singletonList(value)).getValue().get().one().get(), is(value));
+  }
 
-        assertThat(stream.toList(), is(newArrayList(value1, value2, value3)));
-    }
+  @Test
+  public void applyCheckingEmptyStream() {
+    assertThat(streamOf(singletonList(new Object())).getValue().get().two().get(), is(empty()));
+  }
 
-    @Test
-    public void peekCheckingNonStrictStream() {
-        Supplier<Object> one = mock(Supplier.class);
-        Supplier<Object> two = mock(Supplier.class);
+  @Test
+  public void toList() {
+    Object value1 = new Object();
+    Object value2 = new Object();
+    Object value3 = new Object();
+    Stream<Object> stream = streamOf(asList(value1, value2, value3));
 
-        Stream.ofList(ImmutableList.of(one, two))
-              .peek(Supplier::get)
-              .peek(Supplier::get);
+    assertThat(stream.toList(), is(newArrayList(value1, value2, value3)));
+  }
 
-        verify(one, times(2)).get();
-        verify(two, never()).get();
-    }
+  @Test
+  public void peekCheckingNonStrictStream() {
+    Supplier<Object> one = mock(Supplier.class);
+    Supplier<Object> two = mock(Supplier.class);
 
-    @Test
-    public void mapCheckingNonStrictStreamWillNotInvoke() {
-        Supplier<Object> one = mock(Supplier.class);
-        Supplier<Object> two = mock(Supplier.class);
+    streamOf(ImmutableList.of(one, two))
+        .peek(Supplier::get)
+        .peek(Supplier::get);
 
-        Stream.ofList(ImmutableList.of(one, two))
-              .map(value -> value)
-              .map(value -> value);
+    verify(one, times(2)).get();
+    verify(two, never()).get();
+  }
 
-        verify(one, never()).get();
-        verify(two, never()).get();
-    }
+  @Test
+  public void mapCheckingNonStrictStreamWillNotInvoke() {
+    Supplier<Object> one = mock(Supplier.class);
+    Supplier<Object> two = mock(Supplier.class);
 
-    @Test
-    public void mapCheckingNonStrictStreamWithTerminal() {
-        Supplier<Object> one = () -> "One";
-        Supplier<Object> two = () -> "Two";
+    streamOf(ImmutableList.of(one, two))
+        .map(value -> value)
+        .map(value -> value);
 
-        List<Object> objects = Stream
-            .ofList(ImmutableList.of(one, two))
-            .map(Supplier::get)
-            .toList();
+    verify(one, never()).get();
+    verify(two, never()).get();
+  }
 
-        assertEquals(asList("One", "Two"), objects);
-    }
+  @Test
+  public void mapCheckingNonStrictStreamWithTerminal() {
+    Supplier<Object> one = () -> "One";
+    Supplier<Object> two = () -> "Two";
 
-    @Test
-    public void filter() {
-        List<String> objects = oneTwoThree()
-            .filter(value -> "Two".equals(value))
-            .toList();
+    List<Object> objects = streamOf(ImmutableList.of(one, two))
+        .map(Supplier::get)
+        .toList();
 
-        assertEquals(singletonList("Two"), objects);
-    }
+    assertEquals(asList("One", "Two"), objects);
+  }
 
-    @Test
-    public void forAllOneFalse() {
-        boolean result = oneTwoThree()
-            .forAll(value -> "Two".equals(value));
+  @Test
+  public void filter() {
+    List<String> objects = oneTwoThree()
+        .filter("Two"::equals)
+        .toList();
 
-        assertFalse(result);
-    }
+    assertEquals(singletonList("Two"), objects);
+  }
 
-    @Test
-    public void forAllAllTrue() {
-        boolean result = oneTwoThree()
-            .forAll(value -> true);
+  @Test
+  public void forAllOneFalse() {
+    boolean result = oneTwoThree()
+        .forAll("Two"::equals);
 
-        assertTrue(result);
-    }
+    assertFalse(result);
+  }
 
-    @Test
-    public void take() {
-        List<String> actual = oneTwoThree()
-            .take(2)
-            .toList();
+  @Test
+  public void forAllAllTrue() {
+    boolean result = oneTwoThree()
+        .forAll(value -> true);
 
-        assertThat(actual, is(asList("One", "Two")));
-    }
+    assertTrue(result);
+  }
 
-    @Test
-    public void takeWhile() {
-        List<String> actual = oneTwoThree()
-            .takeWhile(value -> !"Three".equals(value))
-            .toList();
+  @Test
+  public void take() {
+    List<String> actual = oneTwoThree()
+        .take(2)
+        .toList();
 
-        assertThat(actual, is(asList("One", "Two")));
-    }
+    assertThat(actual, is(asList("One", "Two")));
+  }
 
-    @Test
-    public void takeWhile2() {
-        List<String> actual = oneTwoThree()
-            .takeWhile2(value -> !"Three".equals(value))
-            .toList();
+  @Test
+  public void takeWhile() {
+    List<String> actual = oneTwoThree()
+        .takeWhile(value -> !"Three".equals(value))
+        .toList();
 
-        assertThat(actual, is(asList("One", "Two")));
-    }
+    assertThat(actual, is(asList("One", "Two")));
+  }
 
-    @Test
-    public void append() {
-        List<String> actual = oneTwoThree()
-            .append(oneTwoThree())
-            .toList();
+  @Test
+  public void append() {
+    List<String> actual = oneTwoThree()
+        .append(oneTwoThree())
+        .toList();
 
-        assertThat(actual, is(asList("One", "Two", "Three", "One", "Two", "Three")));
-    }
+    assertThat(actual, is(asList("One", "Two", "Three", "One", "Two", "Three")));
+  }
 
-    @Test
-    public void flatMap() {
-        List<String> actual = oneTwoThree()
-            .flatMap(value -> Stream.ofList(asList(value, value)))
-            .toList();
+  @Test
+  public void flatMap() {
+    List<String> actual = oneTwoThree()
+        .flatMap(value -> streamOf(asList(value, value)))
+        .toList();
 
-        assertThat(actual, is(asList("One", "One", "Two", "Two", "Three", "Three")));
-    }
+    assertThat(actual, is(asList("One", "One", "Two", "Two", "Three", "Three")));
+  }
 
-    @Test
-    public void existsTrue() {
-        assertTrue(oneTwoThree().exists(value -> "Two".equals(value)));
-    }
+  @Test
+  public void existsTrue() {
+    assertTrue(oneTwoThree().exists("Two"::equals));
+  }
 
-    @Test
-    public void existsFalse() {
-        assertFalse(oneTwoThree().exists(value -> "Zero".equals(value)));
-    }
+  @Test
+  public void existsFalse() {
+    assertFalse(oneTwoThree().exists("Zero"::equals));
+  }
 
-    @Test
-    public void isEmptyCheckingEmpty() {
-        assertTrue(empty().isEmpty());
-    }
+  @Test
+  public void isEmptyCheckingEmpty() {
+    assertTrue(empty().isEmpty());
+  }
 
-    @Test
-    public void isEmptyCheckingNotEmpty() {
-        assertFalse(oneTwoThree().isEmpty());
-    }
+  @Test
+  public void isEmptyCheckingNotEmpty() {
+    assertFalse(oneTwoThree().isEmpty());
+  }
 
-    @Test
-    public void constantCheckingTakeFaveAllTheSame() {
-        int copies = 100;
-        Object value = new Object();
+  @Test
+  public void constantCheckingTakeFaveAllTheSame() {
+    int copies = 100;
+    Object value = new Object();
 
-        assertThat(constant(value).take(copies).toList(), Is.is(nCopies(copies, value)));
-    }
+    assertThat(constant(value).take(copies).toList(), Is.is(nCopies(copies, value)));
+  }
 
-    @Test
-    public void fromCheckingFiveToTen() {
-        assertThat(from(5).take(5).toList(), Is.is(newArrayList(5, 6, 7, 8, 9)));
-    }
+  @Test
+  public void fromCheckingFiveToTen() {
+    assertThat(from(5).take(5).toList(), Is.is(newArrayList(5, 6, 7, 8, 9)));
+  }
 
-    @Test
-    public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
-        List<Object> objects =
-            oneTwoThree()
-                .foldRightToStream(tuple -> cons(() -> tuple.getOne(), tuple.getTwo()))
-                .toList();
+  @Test
+  public void foldLeftCheckingToListReversed() {
+    Stream<String> stream = oneTwoThree().foldLeftToStream(tuple -> {
+      Stream<String> cons = cons(() -> tuple.one(), tuple.two());
+      return cons.isEmpty() ? Result.terminal(empty()) : Result.latest(cons);
+    });
 
-        assertEquals(ImmutableList.of("One", "Two", "Three"), objects);
-    }
+    assertEquals(ImmutableList.of("Three", "Two", "One"), stream.toList());
+  }
 
-    @Test
-    public void foldLeftToStreamCopyCheckingFoldDirectionCorrect() {
-        List<Object> objects =
-            oneTwoThree()
-                .foldLeftToStream(tuple -> cons(() -> tuple.getOne(), tuple.getTwo()))
-                .toList();
+  @Test
+  public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
+    Stream<String> stream = oneTwoThree().foldRightToStream(tuple -> cons(() -> tuple.one(), tuple.two()));
 
-        assertEquals(ImmutableList.of("Three", "Two", "One"), objects);
-    }
-
-    private static Stream<String> oneTwoThree() {
-        return Stream.ofList(ImmutableList.of("One", "Two", "Three"));
-    }
+    assertEquals(ImmutableList.of("One", "Two", "Three"), stream.toList());
+  }
 }
