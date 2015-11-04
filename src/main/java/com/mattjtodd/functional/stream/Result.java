@@ -48,6 +48,10 @@ class Result<T> {
     return new Result<>(value, true);
   }
 
+  public static Result<Boolean> of(boolean terminal) {
+    return terminal ? terminal(true): latest(false);
+  }
+
   public T getValue() {
     return value;
   }

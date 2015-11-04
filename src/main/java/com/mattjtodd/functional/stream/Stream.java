@@ -196,7 +196,7 @@ class Stream<T> {
    * @return true if the condition is met, false otherwise
    */
   public boolean exists(Function<? super T, Boolean> condition) {
-    return foldLeftToBoolean(false, (one, two) -> condition.apply(one) ? terminal(true) : latest(false));
+    return foldLeftToBoolean(false, (one, two) -> Result.of(condition.apply(one)));
   }
 
   /**
@@ -207,7 +207,7 @@ class Stream<T> {
    * @return true if the condition was met, false otherwise
    */
   public boolean forAll(Function<? super T, Boolean> condition) {
-    return foldLeftToBoolean(true, (one, two) -> condition.apply(one) && two.get() ? latest(true) : terminal(false));
+    return foldLeftToBoolean(true, (one, two) -> Result.of(condition.apply(one) && two.get()));
   }
 
   /**
