@@ -192,8 +192,8 @@ public class StreamTest {
 
   @Test
   public void foldLeftCheckingToListReversed() {
-    Stream<String> stream = oneTwoThree().foldLeftToStream(tuple -> {
-      Stream<String> cons = cons(() -> tuple.one(), tuple.two());
+    Stream<String> stream = oneTwoThree().foldLeftToStream((one, two) -> {
+      Stream<String> cons = cons(() -> one, two);
       return cons.isEmpty() ? Result.terminal(empty()) : Result.latest(cons);
     });
 
@@ -202,7 +202,7 @@ public class StreamTest {
 
   @Test
   public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
-    Stream<String> stream = oneTwoThree().foldRightToStream(tuple -> cons(() -> tuple.one(), tuple.two()));
+    Stream<String> stream = oneTwoThree().foldRightToStream((one, two) -> cons(() -> one, two));
 
     assertEquals(ImmutableList.of("One", "Two", "Three"), stream.toList());
   }

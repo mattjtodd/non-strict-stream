@@ -82,7 +82,7 @@ final class Streams {
    * @return the result of the sum
    */
   public static int sum(Stream<Integer> stream) {
-    return stream.foldLeft(() -> 0, tuple -> latest(tuple.one() + tuple.two().get()));
+    return stream.foldLeft(() -> 0, (one, two) -> latest(one + two.get()));
   }
 
   /**
