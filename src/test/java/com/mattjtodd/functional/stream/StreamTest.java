@@ -14,23 +14,28 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.core.Is;
 import org.junit.Test;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
  * Tests for {@link Stream}.
  */
 public class StreamTest {
+
+  /**
+   * User to get around Mockito's inability to mock generic types....
+   */
+  private interface ObjectConsumer extends Consumer<Object> {};
 
   private static Stream<String> oneTwoThree() {
     return streamOf(ImmutableList.of("One", "Two", "Three"));
@@ -155,6 +160,20 @@ public class StreamTest {
         .toList();
 
     assertThat(actual, is(asList("One", "One", "Two", "Two", "Three", "Three")));
+  }
+
+  @Test
+  public void forEachCheckingValuesInOrder() {
+    Consumer<Object> consumer = mock(ObjectConsumer.class);
+
+    streamOf(asList(1, 2, 3, 4)).forEach(consumer);
+
+    InOrder inOrder = inOrder(consumer);
+    inOrder.verify(consumer).accept(1);
+    inOrder.verify(consumer).accept(2);
+    inOrder.verify(consumer).accept(3);
+    inOrder.verify(consumer).accept(4);
+    inOrder.verifyNoMoreInteractions();
   }
 
   @Test

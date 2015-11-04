@@ -1,18 +1,17 @@
 package com.mattjtodd.functional.stream;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.mattjtodd.functional.stream.Immutables.appendToTail;
-import static com.mattjtodd.functional.stream.Result.latest;
-import static com.mattjtodd.functional.stream.Result.terminal;
-import static com.mattjtodd.functional.stream.Streams.none;
-import static com.mattjtodd.functional.stream.Streams.some;
-import static com.mattjtodd.functional.stream.Suppliers.memoize;
-import static com.mattjtodd.functional.stream.Tuple.tupleOf;
-
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.*;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.mattjtodd.functional.stream.Immutables.appendToTail;
+import static com.mattjtodd.functional.stream.Result.latest;
+import static com.mattjtodd.functional.stream.Streams.none;
+import static com.mattjtodd.functional.stream.Streams.some;
+import static com.mattjtodd.functional.stream.Suppliers.memoize;
+import static com.mattjtodd.functional.stream.Tuple.tupleOf;
 
 /**
  * A non-strict stream.
@@ -106,7 +105,7 @@ class Stream<T> {
    *
    * @param consumer the consumer to be applied to every item
    */
-  public void forEach(Consumer<T> consumer) {
+  public void forEach(Consumer<? super T> consumer) {
     Stream<T> current = this;
     while (current.value.isPresent()) {
       Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = current.value.get();

@@ -4,17 +4,19 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A two value tuple.
+ * @param <T1> the type of the one value
+ * @param <T2> the type of the two value
  */
-class Tuple<T, E> {
+class Tuple<T1, T2> {
   /**
    * The one.
    */
-  private final T one;
+  private final T1 one;
 
   /**
    * The two.
    */
-  private final E two;
+  private final T2 two;
 
   /**
    * Creates a fully populated tuple.
@@ -22,7 +24,7 @@ class Tuple<T, E> {
    * @param one the one value
    * @param two the two value
    */
-  private Tuple(T one, E two) {
+  private Tuple(T1 one, T2 two) {
     this.one = checkNotNull(one);
     this.two = checkNotNull(two);
   }
@@ -43,7 +45,7 @@ class Tuple<T, E> {
    *
    * @return the one value
    */
-  public T one() {
+  public T1 one() {
     return one;
   }
 
@@ -52,7 +54,7 @@ class Tuple<T, E> {
    *
    * @return the two value
    */
-  public E two() {
+  public T2 two() {
     return two;
   }
 }
