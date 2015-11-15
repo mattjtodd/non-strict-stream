@@ -20,16 +20,6 @@ final class Suppliers {
   }
 
   /**
-   * Creates a constant value supplier.
-   *
-   * @param value the value to be returned
-   * @return the supplier containing the value
-   */
-  public static <T> Supplier<T> supplier(T value) {
-    return () -> value;
-  }
-
-  /**
    * Creates a decorator supplier which sends the value from invoking the supplier to a consumer.
    *
    * @param supplier the supplier to delegate to

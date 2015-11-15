@@ -30,20 +30,6 @@ import java.util.function.Supplier;
 public class SuppliersTest {
 
   @Test
-  public void supplierCheckingValueReturned() {
-    Object value = new Object();
-
-    assertThat(supplier(value).get(), is(value));
-  }
-
-  @Test
-  public void supplierWithConsumerCheckingAcceptInvokedWithGet() {
-    Object value = new Object();
-
-    assertThat(supplier(value).get(), is(value));
-  }
-
-  @Test
   public void supplierWithDelegateAndConsumerCheckingGet() {
     Object value = new Object();
     Supplier<Object> delegate = () -> value;
