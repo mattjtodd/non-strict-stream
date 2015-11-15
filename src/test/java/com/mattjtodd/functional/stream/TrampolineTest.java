@@ -1,55 +1,55 @@
 package com.mattjtodd.functional.stream;
 
-import org.junit.Test;
-
 import static com.mattjtodd.functional.stream.Trampoline.done;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import org.junit.Test;
+
 /**
  * Tests for the {@link Trampoline}.
  */
 public class TrampolineTest {
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void doneCheckingApplyThrowsException() {
-        done(new Object()).apply();
-    }
+  private static Trampoline<Boolean> trampoline() {
+    return trampoline(false);
+  }
 
-    @Test
-    public void doneCheckingResult() {
-        Object value = new Object();
+  private static Trampoline<Boolean> trampoline(boolean terminal) {
+    return terminal ? done(terminal) : () -> trampoline(!terminal);
+  }
 
-        assertThat(done(value).result(), is(value));
-    }
+  @Test(expected = UnsupportedOperationException.class)
+  public void doneCheckingApplyThrowsException() {
+    done(new Object()).apply();
+  }
 
-    @Test
-    public void doneCheckingIsComplete() {
-        assertTrue(done(new Object()).isComplete());
-    }
+  @Test
+  public void doneCheckingResult() {
+    Object value = new Object();
 
-    @Test
-    public void applyCheckingIsCompleteFalse() {
-        assertFalse(trampoline().isComplete());
-    }
+    assertThat(done(value).result(), is(value));
+  }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void applyCheckingResultThrowsException() {
-        trampoline().result();
-    }
+  @Test
+  public void doneCheckingIsComplete() {
+    assertTrue(done(new Object()).isComplete());
+  }
 
-    @Test
-    public void invokeCheckingResultThrowsException() {
-        assertTrue(trampoline().invoke());
-    }
+  @Test
+  public void applyCheckingIsCompleteFalse() {
+    assertFalse(trampoline().isComplete());
+  }
 
-    private static Trampoline<Boolean> trampoline() {
-        return trampoline(false);
-    }
+  @Test(expected = UnsupportedOperationException.class)
+  public void applyCheckingResultThrowsException() {
+    trampoline().result();
+  }
 
-    private static Trampoline<Boolean> trampoline(boolean terminal) {
-        return terminal ? done(terminal) : () -> trampoline(!terminal);
-    }
+  @Test
+  public void invokeCheckingResultThrowsException() {
+    assertTrue(trampoline().invoke());
+  }
 }

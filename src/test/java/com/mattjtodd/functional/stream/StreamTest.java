@@ -14,14 +14,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import com.google.common.collect.ImmutableList;
 
 import org.hamcrest.core.Is;
 import org.junit.Test;
 import org.mockito.InOrder;
-import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -32,14 +35,11 @@ import java.util.function.Supplier;
  */
 public class StreamTest {
 
-  /**
-   * User to get around Mockito's inability to mock generic types....
-   */
-  private interface ObjectConsumer extends Consumer<Object> {};
-
   private static Stream<String> oneTwoThree() {
     return streamOf(ImmutableList.of("One", "Two", "Three"));
   }
+
+  ;
 
   @Test
   public void applyCheckingOneValue() {
@@ -210,19 +210,15 @@ public class StreamTest {
   }
 
   @Test
-  public void foldLeftCheckingToListReversed() {
-    Stream<String> stream = oneTwoThree().foldLeftToStream((one, two) -> {
-      Stream<String> cons = cons(() -> one, two);
-      return cons.isEmpty() ? Result.terminal(empty()) : Result.latest(cons);
-    });
-
-    assertEquals(ImmutableList.of("Three", "Two", "One"), stream.toList());
-  }
-
-  @Test
   public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
     Stream<String> stream = oneTwoThree().foldRightToStream((one, two) -> cons(() -> one, two));
 
     assertEquals(ImmutableList.of("One", "Two", "Three"), stream.toList());
+  }
+
+  /**
+   * User to get around Mockito's inability to mock generic types....
+   */
+  private interface ObjectConsumer extends Consumer<Object> {
   }
 }

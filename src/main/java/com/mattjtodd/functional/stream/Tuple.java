@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A two value tuple.
+ *
  * @param <T1> the type of the one value
  * @param <T2> the type of the two value
  */

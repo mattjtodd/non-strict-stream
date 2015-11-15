@@ -1,10 +1,5 @@
 package com.mattjtodd.functional.stream;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.*;
-
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.mattjtodd.functional.stream.Immutables.appendToTail;
 import static com.mattjtodd.functional.stream.Result.latest;
@@ -12,6 +7,15 @@ import static com.mattjtodd.functional.stream.Streams.none;
 import static com.mattjtodd.functional.stream.Streams.some;
 import static com.mattjtodd.functional.stream.Suppliers.memoize;
 import static com.mattjtodd.functional.stream.Tuple.tupleOf;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 /**
  * A non-strict stream.
@@ -40,22 +44,22 @@ class Stream<T> {
   /**
    * Constructs a new instance with a non-strict head and tail, which are both memoized.
    *
-   * @param head     the current head expression
-   * @param lazyTail the next head expression
+   * @param head the current head expression
+   * @param tail the next head expression
    */
-  private Stream(Supplier<? extends T> head, Supplier<Stream<T>> lazyTail) {
-    this(some(tupleOf(memoize(head), memoize(lazyTail))));
+  private Stream(Supplier<? extends T> head, Supplier<Stream<T>> tail) {
+    this(some(tupleOf(head, tail)));
   }
 
   /**
    * Simple static constructor to avoid verbosity of new.
    *
-   * @param value     the current value expression
-   * @param nextValue the next value expression
+   * @param head the current head expression
+   * @param tail the next head expression
    * @return the new stream
    */
-  public static <T> Stream<T> cons(Supplier<? extends T> value, Supplier<Stream<T>> nextValue) {
-    return new Stream<>(value, nextValue);
+  public static <T> Stream<T> cons(Supplier<? extends T> head, Supplier<Stream<T>> tail) {
+    return new Stream<>(memoize(head), memoize(tail));
   }
 
   /**
@@ -96,7 +100,7 @@ class Stream<T> {
     }
 
     // bouncy bouncy!
-    return () -> doFoldLeft(() -> apply.getValue(), func, tuple.two().get());
+    return () -> doFoldLeft(apply::getValue, func, tuple.two().get());
   }
 
   /**
@@ -175,7 +179,7 @@ class Stream<T> {
   }
 
   /**
-   * A fold-left reduce function using trampolines to optimise it's tail-call recursion. It's also
+   * A fold-left reduce function using a trampoline to optimise it's tail-call recursion. It's also
    * possible to short-circuit the traversal of the stream early by returning a terminal {@link
    * Result} form the supplied fold function.
    *
@@ -189,7 +193,7 @@ class Stream<T> {
 
   /**
    * Terminal reduce function which checks for a condition being met, then terminates the traversal
-   * early. Implemented using foldRight.
+   * early.
    *
    * @param condition the condition to satisfy once
    * @return true if the condition is met, false otherwise
@@ -238,16 +242,6 @@ class Stream<T> {
    */
   public <E> Stream<E> foldRightToStream(BiFunction<T, Supplier<Stream<E>>, Stream<E>> func) {
     return foldRight(Stream::empty, func);
-  }
-
-  /**
-   * Partially applied fold right which always reduces to a stream starting at an empty stream.
-   *
-   * @param func the reduction function
-   * @return the reduction stream
-   */
-  public <E> Stream<E> foldLeftToStream(BiFunction<T, Supplier<Stream<E>>, Result<Stream<E>>> func) {
-    return foldLeft(Stream::empty, func);
   }
 
   /**
@@ -305,7 +299,7 @@ class Stream<T> {
    * @return the value
    */
   Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> getValue() {
-      return value;
+    return value;
   }
 
   @Override

@@ -49,7 +49,7 @@ class Result<T> {
   }
 
   public static Result<Boolean> of(boolean terminal) {
-    return terminal ? terminal(true): latest(false);
+    return terminal ? terminal(true) : latest(false);
   }
 
   public T getValue() {
