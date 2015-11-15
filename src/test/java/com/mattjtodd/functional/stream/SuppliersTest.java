@@ -3,6 +3,7 @@ package com.mattjtodd.functional.stream;
 import static com.mattjtodd.functional.stream.Suppliers.memoize;
 import static com.mattjtodd.functional.stream.Suppliers.supplier;
 import static java.util.concurrent.CompletableFuture.allOf;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
@@ -14,7 +15,6 @@ import static org.mockito.Mockito.when;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CompletableFuture;
@@ -23,6 +23,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Tests for the {@link Suppliers}
@@ -49,7 +51,7 @@ public class SuppliersTest {
 
   @Test
   public void memoizeCheckingDelegateOnlyInvokedOnceForMultipleCalls() {
-    Supplier<Object> delegate = mock(Supplier.class);
+    Supplier<Object> delegate = mockSupplier();
     when(delegate.get()).thenReturn(new Object());
 
     Supplier<Object> supplier = memoize(delegate);
@@ -61,7 +63,7 @@ public class SuppliersTest {
 
   @Test
   public void memoizeCheckingDelegateOnlyInvokedOnceForMultipleCallsWhenSuppliedValueNull() {
-    Supplier<Object> delegate = mock(Supplier.class);
+    Supplier<Object> delegate = mockSupplier();
 
     Supplier<Object> supplier = memoize(delegate);
     supplier.get();
@@ -94,6 +96,10 @@ public class SuppliersTest {
     assertTrue(result);
   }
 
+  private static <T> Supplier<T> mockSupplier() {
+    return mock(Supplier.class);
+  }
+
   private <T> T getQuietly(CompletableFuture<T> completedFuture) {
     try {
       return completedFuture.get();
@@ -105,21 +111,24 @@ public class SuppliersTest {
   private Collection<CompletableFuture<?>> workers(int count, Supplier<?> supplier) {
     ExecutorService service = newFixedThreadPool(count);
     CyclicBarrier cyclicBarrier = new CyclicBarrier(count);
-    Collection<CompletableFuture<?>> coll = new ArrayList<>(count);
-    for (int i = 0; i < count; i++) {
-      coll.add(worker(cyclicBarrier, service, supplier));
-    }
-    return coll;
+
+    return IntStream
+        .range(0, count)
+        .mapToObj(value -> worker(cyclicBarrier, service, supplier))
+        .collect(Collectors.toList());
   }
 
-  private CompletableFuture<?> worker(CyclicBarrier cyclicBarrier, ExecutorService service, Supplier<?> supplier) {
-    return CompletableFuture.supplyAsync(() -> {
-      try {
-        cyclicBarrier.await();
-        return supplier.get();
-      } catch (InterruptedException | BrokenBarrierException e) {
-        throw new IllegalStateException((e));
-      }
-    }, service);
+  private CompletableFuture<?> worker(CyclicBarrier cyclicBarrier, ExecutorService service,
+                                      Supplier<?> supplier) {
+    return supplyAsync(() -> getAfterAwait(cyclicBarrier, supplier), service);
+  }
+
+  private <T> T getAfterAwait(CyclicBarrier cyclicBarrier, Supplier<T> supplier) {
+    try {
+      cyclicBarrier.await();
+      return supplier.get();
+    } catch (InterruptedException | BrokenBarrierException e) {
+      throw new IllegalStateException((e));
+    }
   }
 }
