@@ -1,7 +1,7 @@
 package com.mattjtodd.functional.stream;
 
 import static com.google.common.collect.Lists.newArrayList;
-import static com.mattjtodd.functional.stream.Stream.cons;
+import static com.mattjtodd.functional.stream.Stream.stream;
 import static com.mattjtodd.functional.stream.Stream.empty;
 import static com.mattjtodd.functional.stream.Streams.constant;
 import static com.mattjtodd.functional.stream.Streams.from;
@@ -164,7 +164,7 @@ public class StreamTest {
 
   @Test
   public void forEachCheckingValuesInOrder() {
-    Consumer<Object> consumer = mock(ObjectConsumer.class);
+    Consumer<Object> consumer = mock(Consumer.class);
 
     streamOf(asList(1, 2, 3, 4)).forEach(consumer);
 
@@ -211,14 +211,8 @@ public class StreamTest {
 
   @Test
   public void foldRightToStreamCopyCheckingFoldDirectionCorrect() {
-    Stream<String> stream = oneTwoThree().foldRightToStream((one, two) -> cons(() -> one, two));
+    Stream<String> stream = oneTwoThree().foldRightToStream((one, two) -> stream(() -> one, two));
 
     assertEquals(ImmutableList.of("One", "Two", "Three"), stream.toList());
-  }
-
-  /**
-   * User to get around Mockito's inability to mock generic types....
-   */
-  private interface ObjectConsumer extends Consumer<Object> {
   }
 }

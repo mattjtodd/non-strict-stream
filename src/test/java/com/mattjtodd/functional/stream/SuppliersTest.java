@@ -97,7 +97,9 @@ public class SuppliersTest {
   }
 
   private static <T> Supplier<T> mockSupplier() {
-    return mock(Supplier.class);
+    @SuppressWarnings("unchecked")
+    Supplier<T> supplier = mock(Supplier.class);
+    return supplier;
   }
 
   private <T> T getQuietly(CompletableFuture<T> completedFuture) {
@@ -118,8 +120,8 @@ public class SuppliersTest {
         .collect(Collectors.toList());
   }
 
-  private CompletableFuture<?> worker(CyclicBarrier cyclicBarrier, ExecutorService service,
-                                      Supplier<?> supplier) {
+  private <T> CompletableFuture<T> worker(CyclicBarrier cyclicBarrier, ExecutorService service,
+                                      Supplier<? extends T> supplier) {
     return supplyAsync(() -> getAfterAwait(cyclicBarrier, supplier), service);
   }
 

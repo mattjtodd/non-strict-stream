@@ -42,7 +42,7 @@ class Stream<T> {
   }
 
   /**
-   * Constructs a new instance with a non-strict head and tail, which are both memoized.
+   * Constructs a new instance with a non-strict head and tail.
    *
    * @param head the current head expression
    * @param tail the next head expression
@@ -52,13 +52,13 @@ class Stream<T> {
   }
 
   /**
-   * Simple static constructor to avoid verbosity of new.
+   * Creates a new Stream instance with the supplied head and tail both of which are memoized.
    *
    * @param head the current head expression
    * @param tail the next head expression
    * @return the new stream
    */
-  public static <T> Stream<T> cons(Supplier<? extends T> head, Supplier<Stream<T>> tail) {
+  public static <T> Stream<T> stream(Supplier<? extends T> head, Supplier<Stream<T>> tail) {
     return new Stream<>(memoize(head), memoize(tail));
   }
 
@@ -73,34 +73,61 @@ class Stream<T> {
     return empty;
   }
 
+
+  /**
+   * A fold-right reduce function.
+   *
+   * @param result the non-strict result function
+   * @param func   the reduction function
+   * @return the reduced value
+   */
+  public <E> E foldRight(Supplier<E> result, BiFunction<T, Supplier<E>, E> func) {
+    return value
+        .map(tuple -> func.apply(tuple.one().get(), () -> tuple.two().get().foldRight(result, func)))
+        .orElseGet(result);
+  }
+
+  /**
+   * A fold-left reduce function using a trampoline to optimise it's tail-call recursion. It's also
+   * possible to short-circuit the traversal of the stream early by returning a terminal {@link
+   * Result} form the supplied fold function.
+   *
+   * @param result the non-strict result function
+   * @param func   the reduction function
+   * @return the reduced value
+   */
+  public <E> E foldLeft(Supplier<E> result, BiFunction<T, Supplier<E>, Result<E>> func) {
+    return doFoldLeft(result, func, this).invoke();
+  }
+
   /**
    * Implements the foldLeft function using tail recursion and a trampoline to handle the stack.  It
    * also evaluates the lazy function arguments which would otherwise blow the stack.
    *
-   * @param result the current reduction result
+   * @param seed the current reduction seed
    * @param func   the function to apply when reducing
    * @param stream the current stream value
    * @return the reduced value
    */
-  private static <E, T> Trampoline<E> doFoldLeft(Supplier<E> result,
+  private static <E, T> Trampoline<E> doFoldLeft(Supplier<E> seed,
                                                  BiFunction<T, Supplier<E>, Result<E>> func,
                                                  Stream<T> stream) {
 
     if (stream.isEmpty()) {
-      return Trampoline.done(result.get());
+      return Trampoline.done(seed.get());
     }
 
     // remove the non-strictness from the trampoline calls by invoking the suppliers
     Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = stream.value.get();
-    Result<E> apply = func.apply(tuple.one().get(), result);
+    Result<E> result = func.apply(tuple.one().get(), seed);
 
     // try to short circuit the left-fold
-    if (apply.isTerminal()) {
-      return Trampoline.done(apply.getValue());
+    if (result.isTerminal()) {
+      return Trampoline.done(result.getValue());
     }
 
     // bouncy bouncy!
-    return () -> doFoldLeft(apply::getValue, func, tuple.two().get());
+    return () -> doFoldLeft(result::getValue, func, tuple.two().get());
   }
 
   /**
@@ -137,7 +164,7 @@ class Stream<T> {
   public Stream<T> take(int number) {
     return value
         .filter(value -> number > 0)
-        .map(tuple -> cons(tuple.one(), () -> tuple.two().get().take(number - 1)))
+        .map(tuple -> stream(tuple.one(), () -> tuple.two().get().take(number - 1)))
         .orElse(empty());
   }
 
@@ -151,7 +178,7 @@ class Stream<T> {
   public Stream<T> peek(Consumer<? super T> consumer) {
     value.ifPresent(value -> consumer.accept(value.one().get()));
     return value
-        .map(tuple -> cons(tuple.one(), () -> tuple.two().get().peek(consumer)))
+        .map(tuple -> stream(tuple.one(), () -> tuple.two().get().peek(consumer)))
         .orElse(empty());
   }
 
@@ -162,35 +189,8 @@ class Stream<T> {
    * @return the stream bound by the function
    */
   public Stream<T> takeWhile(Function<? super T, Boolean> condition) {
-    return foldRightToStream((one, two) -> condition.apply(one) ? cons(() -> one, two) : empty());
+    return foldRightToStream((one, two) -> condition.apply(one) ? stream(() -> one, two) : empty());
   }
-
-  /**
-   * A fold-right reduce function.
-   *
-   * @param result the non-strict result function
-   * @param func   the reduction function
-   * @return the reduced value
-   */
-  public <E> E foldRight(Supplier<E> result, BiFunction<T, Supplier<E>, E> func) {
-    return value
-        .map(tuple -> func.apply(tuple.one().get(), () -> tuple.two().get().foldRight(result, func)))
-        .orElseGet(result);
-  }
-
-  /**
-   * A fold-left reduce function using a trampoline to optimise it's tail-call recursion. It's also
-   * possible to short-circuit the traversal of the stream early by returning a terminal {@link
-   * Result} form the supplied fold function.
-   *
-   * @param result the non-strict result function
-   * @param func   the reduction function
-   * @return the reduced value
-   */
-  public <E> E foldLeft(Supplier<E> result, BiFunction<T, Supplier<E>, Result<E>> func) {
-    return doFoldLeft(result, func, this).invoke();
-  }
-
   /**
    * Terminal reduce function which checks for a condition being met, then terminates the traversal
    * early.
@@ -221,7 +221,7 @@ class Stream<T> {
    * @return the transformed stream
    */
   public <E> Stream<E> map(Function<? super T, ? extends E> func) {
-    return foldRightToStream((one, two) -> cons(() -> func.apply(one), two));
+    return foldRightToStream((one, two) -> stream(() -> func.apply(one), two));
   }
 
   /**
@@ -231,27 +231,7 @@ class Stream<T> {
    * @return the filtered stream
    */
   public Stream<T> filter(Predicate<? super T> predicate) {
-    return foldRightToStream((one, two) -> predicate.test(one) ? cons(() -> one, two) : two.get());
-  }
-
-  /**
-   * Partially applied fold right which always reduces to a stream  starting at an empty stream.
-   *
-   * @param func the reduction function
-   * @return the reduction stream
-   */
-  public <E> Stream<E> foldRightToStream(BiFunction<T, Supplier<Stream<E>>, Stream<E>> func) {
-    return foldRight(Stream::empty, func);
-  }
-
-  /**
-   * Partially applied fold right which always reduces to a stream.
-   *
-   * @param func the reduction function
-   * @return the reduction stream
-   */
-  public Boolean foldLeftToBoolean(boolean start, BiFunction<T, Supplier<Boolean>, Result<Boolean>> func) {
-    return foldLeft(() -> start, func);
+    return foldRightToStream((one, two) -> predicate.test(one) ? stream(() -> one, two) : two.get());
   }
 
   /**
@@ -271,7 +251,7 @@ class Stream<T> {
    * @return a stream with the supplier stream appended onto the end
    */
   public Stream<T> append(Supplier<Stream<T>> stream) {
-    return foldRight(stream, (one, two) -> cons(() -> one, two));
+    return foldRight(stream, (one, two) -> stream(() -> one, two));
   }
 
   /**
@@ -281,7 +261,27 @@ class Stream<T> {
    * @return a stream which has been flat-mapped
    */
   public <E> Stream<E> flatMap(Function<T, Stream<E>> func) {
-    return foldRight(Stream::empty, (one, two) -> func.apply(one).append(two));
+    return foldRightToStream((one, two) -> func.apply(one).append(two));
+  }
+
+  /**
+   * Partially applied fold right which always reduces to a stream.
+   *
+   * @param func the reduction function
+   * @return the reduction stream
+   */
+  public Boolean foldLeftToBoolean(boolean start, BiFunction<T, Supplier<Boolean>, Result<Boolean>> func) {
+    return foldLeft(() -> start, func);
+  }
+
+  /**
+   * Partially applied fold right which always reduces to a stream  starting at an empty stream.
+   *
+   * @param func the reduction function
+   * @return the reduction stream
+   */
+  public <E> Stream<E> foldRightToStream(BiFunction<T, Supplier<Stream<E>>, Stream<E>> func) {
+    return foldRight(Stream::empty, func);
   }
 
   /**

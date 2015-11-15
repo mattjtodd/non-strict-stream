@@ -2,7 +2,7 @@ package com.mattjtodd.functional.stream;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 import static com.mattjtodd.functional.stream.Result.latest;
-import static com.mattjtodd.functional.stream.Stream.cons;
+import static com.mattjtodd.functional.stream.Stream.stream;
 import static com.mattjtodd.functional.stream.Stream.empty;
 import static com.mattjtodd.functional.stream.Tuple.tupleOf;
 import static java.util.Collections.emptyList;
@@ -71,7 +71,7 @@ final class Streams {
   public static <A, B> Stream<A> unfold(B state, Function<B, Optional<Tuple<A, B>>> func) {
     return func
         .apply(state)
-        .map(tuple -> cons(tuple::one, () -> unfold(tuple.two(), func)))
+        .map(tuple -> stream(tuple::one, () -> unfold(tuple.two(), func)))
         .orElse(empty());
   }
 

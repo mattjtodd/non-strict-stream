@@ -13,14 +13,6 @@ import org.junit.Test;
  */
 public class TrampolineTest {
 
-  private static Trampoline<Boolean> trampoline() {
-    return trampoline(false);
-  }
-
-  private static Trampoline<Boolean> trampoline(boolean terminal) {
-    return terminal ? done(terminal) : () -> trampoline(!terminal);
-  }
-
   @Test(expected = UnsupportedOperationException.class)
   public void doneCheckingApplyThrowsException() {
     done(new Object()).apply();
@@ -51,5 +43,13 @@ public class TrampolineTest {
   @Test
   public void invokeCheckingResultThrowsException() {
     assertTrue(trampoline().invoke());
+  }
+
+  private static Trampoline<Boolean> trampoline() {
+    return trampoline(false);
+  }
+
+  private static Trampoline<Boolean> trampoline(boolean terminal) {
+    return terminal ? done(terminal) : () -> trampoline(!terminal);
   }
 }
