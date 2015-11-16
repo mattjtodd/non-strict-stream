@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.mockito.InOrder;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -214,5 +215,15 @@ public class StreamTest {
     Stream<String> stream = oneTwoThree().foldRightToStream((one, two) -> stream(() -> one, two));
 
     assertEquals(ImmutableList.of("One", "Two", "Three"), stream.toList());
+  }
+
+  @Test
+  public void headCheckingEmptyWhenEmpty() {
+    assertThat(empty().head(), is(Optional.empty()));
+  }
+
+  @Test
+  public void headCheckingOneWhenConstOne() {
+    assertThat(constant(1).head(), is(Optional.of(1)));
   }
 }

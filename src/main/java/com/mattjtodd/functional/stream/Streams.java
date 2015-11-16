@@ -7,6 +7,7 @@ import static com.mattjtodd.functional.stream.Stream.empty;
 import static com.mattjtodd.functional.stream.Tuple.tupleOf;
 import static java.util.Collections.emptyList;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -27,8 +28,8 @@ final class Streams {
    * @param values the values which will be used to populate the stream
    * @return the stream for the supplied values
    */
-  public static <T> Stream<T> streamOf(List<T> values) {
-    return unfold(values, list -> list.isEmpty() ? none() : some(tupleOf(list.get(0), tailOf(list))));
+  public static <T> Stream<T> streamOf(Collection<T> values) {
+    return streamOf(values.iterator());
   }
 
   /**

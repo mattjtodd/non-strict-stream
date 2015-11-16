@@ -73,7 +73,6 @@ class Stream<T> {
     return empty;
   }
 
-
   /**
    * A fold-right reduce function.
    *
@@ -81,7 +80,7 @@ class Stream<T> {
    * @param func   the reduction function
    * @return the reduced value
    */
-  public <E> E foldRight(Supplier<E> result, BiFunction<T, Supplier<E>, E> func) {
+  public <E> E foldRight(Supplier<E> result, BiFunction<? super T, Supplier<E>, E> func) {
     return value
         .map(tuple -> func.apply(tuple.one().get(), () -> tuple.two().get().foldRight(result, func)))
         .orElseGet(result);
@@ -96,7 +95,7 @@ class Stream<T> {
    * @param func   the reduction function
    * @return the reduced value
    */
-  public <E> E foldLeft(Supplier<E> result, BiFunction<T, Supplier<E>, Result<E>> func) {
+  public <E> E foldLeft(Supplier<E> result, BiFunction<? super T, Supplier<E>, Result<E>> func) {
     return doFoldLeft(result, func, this).invoke();
   }
 
@@ -110,7 +109,7 @@ class Stream<T> {
    * @return the reduced value
    */
   private static <E, T> Trampoline<E> doFoldLeft(Supplier<E> seed,
-                                                 BiFunction<T, Supplier<E>, Result<E>> func,
+                                                 BiFunction<? super T, Supplier<E>, Result<E>> func,
                                                  Stream<T> stream) {
 
     if (stream.isEmpty()) {
@@ -260,7 +259,7 @@ class Stream<T> {
    * @param func the function to use for flat mapping
    * @return a stream which has been flat-mapped
    */
-  public <E> Stream<E> flatMap(Function<T, Stream<E>> func) {
+  public <E> Stream<E> flatMap(Function<? super T, Stream<E>> func) {
     return foldRightToStream((one, two) -> func.apply(one).append(two));
   }
 
@@ -270,7 +269,7 @@ class Stream<T> {
    * @param func the reduction function
    * @return the reduction stream
    */
-  public Boolean foldLeftToBoolean(boolean start, BiFunction<T, Supplier<Boolean>, Result<Boolean>> func) {
+  public Boolean foldLeftToBoolean(boolean start, BiFunction<? super T, Supplier<Boolean>, Result<Boolean>> func) {
     return foldLeft(() -> start, func);
   }
 
@@ -280,7 +279,7 @@ class Stream<T> {
    * @param func the reduction function
    * @return the reduction stream
    */
-  public <E> Stream<E> foldRightToStream(BiFunction<T, Supplier<Stream<E>>, Stream<E>> func) {
+  public <E> Stream<E> foldRightToStream(BiFunction<? super T, Supplier<Stream<E>>, Stream<E>> func) {
     return foldRight(Stream::empty, func);
   }
 
@@ -291,6 +290,17 @@ class Stream<T> {
    */
   public boolean isEmpty() {
     return !value.isPresent();
+  }
+
+  /**
+   * Get's the head of this stream.
+   *
+   * @return the streams head value which may or may not be present
+   */
+  public Optional<T> head() {
+    return value
+        .map(Tuple::one)
+        .map(Supplier::get);
   }
 
   /**
@@ -305,5 +315,12 @@ class Stream<T> {
   @Override
   public String toString() {
     return toList().toString();
+  }
+
+  public static void main(String[] args) {
+    Streams
+        .from(10)
+        .filter(value -> value % 17 == 0)
+        .forEach(System.out::println);
   }
 }

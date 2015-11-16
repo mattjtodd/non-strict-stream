@@ -16,7 +16,7 @@ public class TupleTest {
   }
 
   @Test
-  public void getOneCheckingValueCorrect() {
+  public void getOneCheckingValue() {
     Object one = new Object();
     Object two = new Object();
     Tuple<Object, Object> tuple = tupleOf(one, two);
@@ -25,7 +25,7 @@ public class TupleTest {
   }
 
   @Test
-  public void getTwoCheckingValueCorrect() {
+  public void getTwoCheckingValue() {
     Object one = new Object();
     Object two = new Object();
     Tuple<Object, Object> tuple = tupleOf(one, two);
