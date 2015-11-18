@@ -1,10 +1,9 @@
 package com.mattjtodd.functional.stream;
 
-import static com.mattjtodd.functional.stream.Streams.none;
-import static com.mattjtodd.functional.stream.Streams.some;
-import static com.mattjtodd.functional.stream.Streams.streamOf;
-import static com.mattjtodd.functional.stream.Streams.sum;
-import static com.mattjtodd.functional.stream.Streams.tailOf;
+import org.junit.Test;
+
+import static com.mattjtodd.functional.stream.Streams.*;
+import static com.mattjtodd.functional.stream.Tuple.tupleOf;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -12,8 +11,6 @@ import static java.util.Optional.empty;
 import static java.util.Optional.of;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.assertThat;
-
-import org.junit.Test;
 
 /**
  * Tests for {@link Streams}.
@@ -67,5 +64,12 @@ public class StreamsTest {
   @Test
   public void sumWhenLargeValueNoStackOverflow() {
     assertThat(sum(Streams.constant(1).take(100000)), is(100000));
+  }
+
+  @Test
+  public void unfoldTest() {
+    Streams
+        .unfold(0, value -> value > 10 ? none() : some(tupleOf(value, value + 1)))
+        .toList();
   }
 }

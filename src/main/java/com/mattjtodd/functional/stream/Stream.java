@@ -1,5 +1,10 @@
 package com.mattjtodd.functional.stream;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.*;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.mattjtodd.functional.stream.Immutables.appendToTail;
 import static com.mattjtodd.functional.stream.Result.latest;
@@ -7,15 +12,6 @@ import static com.mattjtodd.functional.stream.Streams.none;
 import static com.mattjtodd.functional.stream.Streams.some;
 import static com.mattjtodd.functional.stream.Suppliers.memoize;
 import static com.mattjtodd.functional.stream.Tuple.tupleOf;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
 
 /**
  * A non-strict stream.
@@ -322,5 +318,11 @@ class Stream<T> {
         .from(10)
         .filter(value -> value % 17 == 0)
         .forEach(System.out::println);
+
+    Streams.from(0)
+           .take(1000)
+           .map(value -> value.toString())
+           .filter(value -> Integer.parseInt(value) > 200)
+           .forEach(System.out::println);
   }
 }

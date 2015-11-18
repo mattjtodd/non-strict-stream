@@ -59,7 +59,7 @@ final class Streams {
    * @return the stream
    */
   public static Stream<Integer> from(int startInclusive) {
-    return unfold(startInclusive, value -> some(tupleOf(value, value + 1)));
+    return stream(() -> startInclusive, () -> from(startInclusive + 1));
   }
 
   /**
