@@ -3,7 +3,11 @@ package com.mattjtodd.functional.stream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.mattjtodd.functional.stream.Immutables.appendToTail;
@@ -11,7 +15,6 @@ import static com.mattjtodd.functional.stream.Result.latest;
 import static com.mattjtodd.functional.stream.Streams.none;
 import static com.mattjtodd.functional.stream.Streams.some;
 import static com.mattjtodd.functional.stream.Suppliers.memoize;
-import static com.mattjtodd.functional.stream.Tuple.tupleOf;
 
 /**
  * A non-strict stream.
@@ -22,10 +25,11 @@ class Stream<T> {
    * A static empty stream instance.
    */
   private static final Stream<?> EMPTY = new Stream<>(none());
+
   /**
    * The current value for this stream.
    */
-  private final Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> value;
+  private final Optional<Value<T>> value;
 
   /**
    * Constructs a new instance with the supplied value.
@@ -33,7 +37,7 @@ class Stream<T> {
    * @param value an optional Monad containing the supplier for the head supplier and the next
    *              stream value supplier.
    */
-  private Stream(Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> value) {
+  private Stream(Optional<Value<T>> value) {
     this.value = checkNotNull(value);
   }
 
@@ -44,7 +48,7 @@ class Stream<T> {
    * @param tail the next head expression
    */
   private Stream(Supplier<? extends T> head, Supplier<Stream<T>> tail) {
-    this(some(tupleOf(head, tail)));
+    this(some(new Value<>(head, tail)));
   }
 
   /**
@@ -78,7 +82,7 @@ class Stream<T> {
    */
   public <E> E foldRight(Supplier<E> result, BiFunction<? super T, Supplier<E>, E> func) {
     return value
-        .map(tuple -> func.apply(tuple.one().get(), () -> tuple.two().get().foldRight(result, func)))
+        .map(value -> func.apply(value.evalHead(), () -> value.evalTail().foldRight(result, func)))
         .orElseGet(result);
   }
 
@@ -113,8 +117,8 @@ class Stream<T> {
     }
 
     // remove the non-strictness from the trampoline calls by invoking the suppliers
-    Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = stream.value.get();
-    Result<E> result = func.apply(tuple.one().get(), seed);
+    Value<T> value = stream.value.get();
+    Result<E> result = func.apply(value.evalHead(), seed);
 
     // try to short circuit the left-fold
     if (result.isTerminal()) {
@@ -122,7 +126,7 @@ class Stream<T> {
     }
 
     // bouncy bouncy!
-    return () -> doFoldLeft(result::getValue, func, tuple.two().get());
+    return () -> doFoldLeft(result::getValue, func, value.evalTail());
   }
 
   /**
@@ -134,9 +138,9 @@ class Stream<T> {
   public void forEach(Consumer<? super T> consumer) {
     Stream<T> current = this;
     while (current.value.isPresent()) {
-      Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = current.value.get();
-      consumer.accept(tuple.one().get());
-      current = tuple.two().get();
+      Value<T> value = current.value.get();
+      consumer.accept(value.evalHead());
+      current = value.evalTail();
     }
   }
 
@@ -146,7 +150,7 @@ class Stream<T> {
    * @return the list ofList the stream values
    */
   public List<T> toList() {
-    return foldLeft(Collections::emptyList, (one, two) -> latest(appendToTail(two.get(), one)));
+    return foldLeft(Collections::emptyList, (head, tail) -> latest(appendToTail(tail.get(), head)));
   }
 
   /**
@@ -159,7 +163,7 @@ class Stream<T> {
   public Stream<T> take(int number) {
     return value
         .filter(value -> number > 0)
-        .map(tuple -> stream(tuple.one(), () -> tuple.two().get().take(number - 1)))
+        .map(value -> stream(value.getHead(), () -> value.evalTail().take(number - 1)))
         .orElse(empty());
   }
 
@@ -171,9 +175,9 @@ class Stream<T> {
    * @return the current stream
    */
   public Stream<T> peek(Consumer<? super T> consumer) {
-    value.ifPresent(value -> consumer.accept(value.one().get()));
+    value.ifPresent(value -> consumer.accept(value.evalHead()));
     return value
-        .map(tuple -> stream(tuple.one(), () -> tuple.two().get().peek(consumer)))
+        .map(tuple -> stream(tuple.getHead(), () -> tuple.evalTail().peek(consumer)))
         .orElse(empty());
   }
 
@@ -184,7 +188,7 @@ class Stream<T> {
    * @return the stream bound by the function
    */
   public Stream<T> takeWhile(Function<? super T, Boolean> condition) {
-    return foldRightToStream((one, two) -> condition.apply(one) ? stream(() -> one, two) : empty());
+    return foldRightToStream((head, tail) -> condition.apply(head) ? stream(() -> head, tail) : empty());
   }
   /**
    * Terminal reduce function which checks for a condition being met, then terminates the traversal
@@ -194,7 +198,7 @@ class Stream<T> {
    * @return true if the condition is met, false otherwise
    */
   public boolean exists(Function<? super T, Boolean> condition) {
-    return foldLeftToBoolean(false, (one, two) -> Result.of(condition.apply(one)));
+    return foldLeftToBoolean(false, (head, tail) -> Result.of(condition.apply(head)));
   }
 
   /**
@@ -205,7 +209,7 @@ class Stream<T> {
    * @return true if the condition was met, false otherwise
    */
   public boolean forAll(Function<? super T, Boolean> condition) {
-    return foldLeftToBoolean(true, (one, two) -> Result.of(condition.apply(one) && two.get()));
+    return foldLeftToBoolean(true, (head, tail) -> Result.of(condition.apply(head) && tail.get()));
   }
 
   /**
@@ -216,7 +220,7 @@ class Stream<T> {
    * @return the transformed stream
    */
   public <E> Stream<E> map(Function<? super T, ? extends E> func) {
-    return foldRightToStream((one, two) -> stream(() -> func.apply(one), two));
+    return foldRightToStream((head, tail) -> stream(() -> func.apply(head), tail));
   }
 
   /**
@@ -226,7 +230,7 @@ class Stream<T> {
    * @return the filtered stream
    */
   public Stream<T> filter(Predicate<? super T> predicate) {
-    return foldRightToStream((one, two) -> predicate.test(one) ? stream(() -> one, two) : two.get());
+    return foldRightToStream((head, tail) -> predicate.test(head) ? stream(() -> head, tail) : tail.get());
   }
 
   /**
@@ -246,7 +250,7 @@ class Stream<T> {
    * @return a stream with the supplier stream appended onto the end
    */
   public Stream<T> append(Supplier<Stream<T>> stream) {
-    return foldRight(stream, (one, two) -> stream(() -> one, two));
+    return foldRight(stream, (head, tail) -> stream(() -> head, tail));
   }
 
   /**
@@ -256,7 +260,7 @@ class Stream<T> {
    * @return a stream which has been flat-mapped
    */
   public <E> Stream<E> flatMap(Function<? super T, Stream<E>> func) {
-    return foldRightToStream((one, two) -> func.apply(one).append(two));
+    return foldRightToStream((head, tail) -> func.apply(head).append(tail));
   }
 
   /**
@@ -294,9 +298,7 @@ class Stream<T> {
    * @return the streams head value which may or may not be present
    */
   public Optional<T> head() {
-    return value
-        .map(Tuple::one)
-        .map(Supplier::get);
+    return value.map(Value::evalHead);
   }
 
   /**
@@ -304,25 +306,12 @@ class Stream<T> {
    *
    * @return the value
    */
-  Optional<Tuple<Supplier<? extends T>, Supplier<Stream<T>>>> getValue() {
+  Optional<Value<T>> getValue() {
     return value;
   }
 
   @Override
   public String toString() {
     return toList().toString();
-  }
-
-  public static void main(String[] args) {
-    Streams
-        .from(10)
-        .filter(value -> value % 17 == 0)
-        .forEach(System.out::println);
-
-    Streams.from(0)
-           .take(1000)
-           .map(value -> value.toString())
-           .filter(value -> Integer.parseInt(value) > 200)
-           .forEach(System.out::println);
   }
 }

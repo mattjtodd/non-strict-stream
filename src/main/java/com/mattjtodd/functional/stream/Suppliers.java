@@ -42,7 +42,7 @@ final class Suppliers {
    * @param supplier the supplier to decorate with caching
    * @return the caching supplier.
    */
-  public static <T> Supplier<T> memoize(Supplier<? extends T> supplier) {
+  public static <T> Supplier<T> memoize(Supplier<T> supplier) {
     AtomicReference<Optional<T>> reference = new AtomicReference<>();
     return () -> reference
         .updateAndGet(value -> value == null ? ofNullable(supplier.get()) : value)

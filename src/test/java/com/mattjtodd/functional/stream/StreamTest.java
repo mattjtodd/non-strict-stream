@@ -33,12 +33,12 @@ public class StreamTest {
   public void applyCheckingOneValue() {
     Object value = new Object();
 
-    assertThat(streamOf(singletonList(value)).getValue().get().one().get(), is(value));
+    assertThat(streamOf(singletonList(value)).getValue().get().evalHead(), is(value));
   }
 
   @Test
   public void applyCheckingEmptyStream() {
-    assertThat(streamOf(singletonList(new Object())).getValue().get().two().get(), is(empty()));
+    assertThat(streamOf(singletonList(new Object())).getValue().get().evalTail(), is(empty()));
   }
 
   @Test
