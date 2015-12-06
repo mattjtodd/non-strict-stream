@@ -18,7 +18,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
- * A non-strict stream.
+ * An immutable non-strict stream.
  */
 class Stream<T> {
 
@@ -77,7 +77,7 @@ class Stream<T> {
    * A fold-right reduce function.
    *
    * @param result the non-strict result function
-   * @param func   the reduction function
+   * @param func the reduction function
    * @return the reduced value
    */
   public <E> E foldRight(Supplier<E> result, BiFunction<? super T, Supplier<E>, E> func) {
@@ -92,7 +92,7 @@ class Stream<T> {
    * Result} form the supplied fold function.
    *
    * @param result the non-strict result function
-   * @param func   the reduction function
+   * @param func the reduction function
    * @return the reduced value
    */
   public <E> E foldLeft(Supplier<E> result, BiFunction<? super T, Supplier<E>, Result<E>> func) {
@@ -104,7 +104,7 @@ class Stream<T> {
    * also evaluates the lazy function arguments which would otherwise blow the stack.
    *
    * @param seed the current reduction seed
-   * @param func   the function to apply when reducing
+   * @param func the function to apply when reducing
    * @param stream the current stream value
    * @return the reduced value
    */
@@ -130,6 +130,7 @@ class Stream<T> {
   }
 
   /**
+   * Repeatedly applies the evaluated head to the consumer and then repeats with the evaluated tail.
    * Virtual tail-call optimised forEach, capable of handling an infinite stream. Uses a while loop
    * rather than a trampoline as this will be more efficient.
    *
@@ -137,10 +138,9 @@ class Stream<T> {
    */
   public void forEach(Consumer<? super T> consumer) {
     Stream<T> current = this;
-    while (current.value.isPresent()) {
-      Tuple<Supplier<? extends T>, Supplier<Stream<T>>> tuple = current.value.get();
-      consumer.accept(tuple.one().get());
-      current = tuple.two().get();
+    while (!current.isEmpty()) {
+      consumer.accept(current.head().get());
+      current = current.tail().get();
     }
   }
 
@@ -214,7 +214,7 @@ class Stream<T> {
 
   /**
    * Applies the supplied transform function to each element in the stream, returning a new stream
-   * to the transformed type.
+   * to the transformed type.  This will not invoke recursion of the tail as two is never evaluated.
    *
    * @param func the transform function
    * @return the transformed stream
@@ -298,8 +298,12 @@ class Stream<T> {
    * @return the streams head value which may or may not be present
    */
   public Optional<T> head() {
+    return foldRight(Optional::empty, (head, tail) -> Optional.of(getValue().get().one().get()));
+  }
+
+  public Optional<Stream<T>> tail() {
     return value
-        .map(Tuple::one)
+        .map(Tuple::two)
         .map(Supplier::get);
   }
 
@@ -319,8 +323,10 @@ class Stream<T> {
 
   public static void main(String[] args) {
     Streams
-        .from(10)
-        .filter(value -> value % 17 == 0)
-        .forEach(System.out::println);
+        .from(200)
+        .filter(value -> value > 250)
+        .take(100)
+        .head()
+        .ifPresent(System.out::println);
   }
 }
