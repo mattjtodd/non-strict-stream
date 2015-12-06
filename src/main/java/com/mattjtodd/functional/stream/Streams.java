@@ -59,7 +59,7 @@ final class Streams {
    * @return the stream
    */
   public static Stream<Integer> from(int startInclusive) {
-    return unfold(startInclusive, value -> some(tupleOf(value, value + 1)));
+    return stream(() -> startInclusive, () -> from(startInclusive + 1));
   }
 
   /**
@@ -113,5 +113,16 @@ final class Streams {
    */
   static <T> List<T> tailOf(List<T> list) {
     return list.size() > 1 ? copyOf(list.subList(1, list.size())) : emptyList();
+  }
+
+  public static Stream<Integer> sieve(Stream<Integer> s) {
+    Value<Integer> value = s.getValue().get();
+    return stream(
+        value.getHead(),
+        () -> sieve(value.evalTail().filter(n -> n % s.head().get() != 0)));
+  }
+
+  public static void main(String[] args) {
+    sieve(from(1)).forEach(System.out::println);
   }
 }

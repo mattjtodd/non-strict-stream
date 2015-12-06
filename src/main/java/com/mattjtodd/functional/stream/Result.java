@@ -48,8 +48,14 @@ class Result<T> {
     return new Result<>(value, true);
   }
 
+  /**
+   * Create a result which whose terminal flag is dependent upon the terminal argument.
+   *
+   * @param terminal the terminal flag
+   * @return the result which will either be
+   */
   public static Result<Boolean> of(boolean terminal) {
-    return terminal ? terminal(true) : latest(false);
+    return terminal ? terminal(terminal) : latest(terminal);
   }
 
   public T getValue() {

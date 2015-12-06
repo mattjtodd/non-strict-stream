@@ -1,27 +1,6 @@
 package com.mattjtodd.functional.stream;
 
-import static com.google.common.collect.Lists.newArrayList;
-import static com.mattjtodd.functional.stream.Stream.stream;
-import static com.mattjtodd.functional.stream.Stream.empty;
-import static com.mattjtodd.functional.stream.Streams.constant;
-import static com.mattjtodd.functional.stream.Streams.from;
-import static com.mattjtodd.functional.stream.Streams.streamOf;
-import static java.util.Arrays.asList;
-import static java.util.Collections.nCopies;
-import static java.util.Collections.singletonList;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-
 import com.google.common.collect.ImmutableList;
-
 import org.hamcrest.core.Is;
 import org.junit.Test;
 import org.mockito.InOrder;
@@ -30,6 +9,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static com.google.common.collect.Lists.newArrayList;
+import static com.mattjtodd.functional.stream.Stream.*;
+import static com.mattjtodd.functional.stream.Streams.*;
+import static java.util.Arrays.asList;
+import static java.util.Collections.nCopies;
+import static java.util.Collections.singletonList;
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Tests for {@link Stream}.
@@ -40,18 +29,16 @@ public class StreamTest {
     return streamOf(ImmutableList.of("One", "Two", "Three"));
   }
 
-  ;
-
   @Test
   public void applyCheckingOneValue() {
     Object value = new Object();
 
-    assertThat(streamOf(singletonList(value)).getValue().get().one().get(), is(value));
+    assertThat(streamOf(singletonList(value)).getValue().get().evalHead(), is(value));
   }
 
   @Test
   public void applyCheckingEmptyStream() {
-    assertThat(streamOf(singletonList(new Object())).getValue().get().two().get(), is(empty()));
+    assertThat(streamOf(singletonList(new Object())).getValue().get().evalTail(), is(empty()));
   }
 
   @Test
@@ -208,6 +195,26 @@ public class StreamTest {
   @Test
   public void fromCheckingFiveToTen() {
     assertThat(from(5).take(5).toList(), Is.is(newArrayList(5, 6, 7, 8, 9)));
+  }
+
+  @Test
+  public void foldLeftCheckingToListReversed() {
+    Stream<String> stream = oneTwoThree().foldLeft(Stream::empty, (one, two) -> {
+      Stream<String> cons = stream(() -> one, two);
+      return cons.isEmpty() ? Result.terminal(empty()) : Result.latest(cons);
+    });
+
+    assertEquals(ImmutableList.of("Three", "Two", "One"), stream.toList());
+  }
+
+  @Test
+  public void headWhenEmpty() {
+    assertThat(oneTwoThree().filter(value -> value.length() > 5).head(), is(none()));
+  }
+
+  @Test
+  public void headCheckingOne() {
+    assertThat(oneTwoThree().head(), is(some("One")));
   }
 
   @Test
